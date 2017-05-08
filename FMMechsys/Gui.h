@@ -173,7 +173,7 @@ namespace FMMechsys {
 
 		size_t ndims = hsize;
 		hsize_t * dims;
-		dims = new hsize_t[ndims];
+		dims = new hsize_t[ndims]; 
 		H5Sget_simple_extent_dims(dspace, dims, NULL);
 
 		//Gettings number of fractures
