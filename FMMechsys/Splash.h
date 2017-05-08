@@ -63,18 +63,20 @@ namespace FMMechsys {
 			this->label1->AutoSize = true;
 			this->label1->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.125F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(0)));
-			this->label1->Location = System::Drawing::Point(335, 165);
+			this->label1->Location = System::Drawing::Point(43, 21);
+			this->label1->Margin = System::Windows::Forms::Padding(2, 0, 2, 0);
 			this->label1->Name = L"label1";
-			this->label1->Size = System::Drawing::Size(86, 31);
+			this->label1->Size = System::Drawing::Size(46, 17);
 			this->label1->TabIndex = 0;
-			this->label1->Text = L"";
+			this->label1->Text = L"label1";
 			// 
 			// Splash
 			// 
-			this->AutoScaleDimensions = System::Drawing::SizeF(12, 25);
+			this->AutoScaleDimensions = System::Drawing::SizeF(6, 13);
 			this->AutoScaleMode = System::Windows::Forms::AutoScaleMode::Font;
-			this->ClientSize = System::Drawing::Size(817, 384);
+			this->ClientSize = System::Drawing::Size(385, 58);
 			this->Controls->Add(this->label1);
+			this->Margin = System::Windows::Forms::Padding(2);
 			this->Name = L"Splash";
 			this->Text = L"Result";
 			this->ResumeLayout(false);
