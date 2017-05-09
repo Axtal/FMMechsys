@@ -209,34 +209,44 @@ namespace FMMechsys {
 
 		for (size_t nf = 0; nf < nfrac; nf++)
 		{
-			Verts[5 * nf + 0] = Eigen::Vector3d(Vecs[15 * nf + 0], Vecs[15 * nf + 1], Vecs[15 * nf + 2]);
-			Verts[5 * nf + 1] = Eigen::Vector3d(Vecs[15 * nf + 3], Vecs[15 * nf + 4], Vecs[15 * nf + 5]);
-			Verts[5 * nf + 2] = Eigen::Vector3d(Vecs[15 * nf + 6], Vecs[15 * nf + 7], Vecs[15 * nf + 8]);
-			Verts[5 * nf + 3] = Eigen::Vector3d(Vecs[15 * nf + 9], Vecs[15 * nf + 10], Vecs[15 * nf + 11]);
-			Verts[5 * nf + 4] = Eigen::Vector3d(Vecs[15 * nf + 12], Vecs[15 * nf + 13], Vecs[15 * nf + 14]);
+			Verts[5 * nf + 0] = Eigen::Vector3d(Vecs[15 * nf + 0], -Vecs[15 * nf + 2], Vecs[15 * nf + 1]);
+			Verts[5 * nf + 1] = Eigen::Vector3d(Vecs[15 * nf + 3], -Vecs[15 * nf + 5], Vecs[15 * nf + 4]);
+			Verts[5 * nf + 2] = Eigen::Vector3d(Vecs[15 * nf + 6], -Vecs[15 * nf + 8], Vecs[15 * nf + 7]);
+			Verts[5 * nf + 3] = Eigen::Vector3d(Vecs[15 * nf + 9], -Vecs[15 * nf + 11], Vecs[15 * nf + 10]);
+			Verts[5 * nf + 4] = Eigen::Vector3d(Vecs[15 * nf + 12], -Vecs[15 * nf + 14], Vecs[15 * nf + 13]);
 		}
 		delete[] dims;
 
+		/*std::ofstream file;
+		file.open("test.txt");
+		std::streambuf* sbuf = std::cout.rdbuf();
+		std::cout.rdbuf(file.rdbuf());*/
+
 		std::ofstream myfile("macro.fmf");
 		// Writing Fractures to Fracman fracture file
-		for (size_t nf = 0; nf < nfrac; nf++)
+		for (size_t nf = 0; nf < nfrac; nf = nf+2)
 		{
 			double x = Verts[5 * nf + 4](0);
-			double y = Verts[5 * nf + 4](2);
-			double z = Verts[5 * nf + 4](1);
+			double y = Verts[5 * nf + 4](1);
+			double z = Verts[5 * nf + 4](2);
 			Eigen::Vector3d d1 = Verts[5 * nf + 1] - Verts[5 * nf + 0];
 			Eigen::Vector3d d2 = Verts[5 * nf + 3] - Verts[5 * nf + 0];
 			Eigen::Vector3d d3 = Verts[5 * nf + 3] - Verts[5 * nf + 1];
 			Eigen::Vector3d d1xd2 = d1.cross(d2);
-			Eigen::Vector3d nz(0, 0, 1);
+			Eigen::Vector3d nx(1, 0, 0);
 
-			double theta = acos(d1xd2.dot(nz) / d1xd2.norm());
-			double phi = 0.0;
-			double lf = d3.norm();
+			//std::cout << d1(0) << " " << d1(1) << " " << d1(2) << std::endl;
+			//std::cout << d2(0) << " " << d2(1) << " " << d2(2) << std::endl;
+
+			if (d1xd2(2) > 0.0) d1xd2 = -d1xd2;
+
+			double phi   = acos(d1xd2.dot(nx) / d1xd2.norm());
+			double theta = M_PI/2.0;
+			double lf = d3.norm()/2.0;
 
 			myfile << " BEGIN SingleFracture \n";
 			myfile << "	Name = \"Single Fracture " << nf + 1 << "\" \n";
-			myfile << "	Set = \"SF" << nf + 1 << "\" \n";
+			myfile << "	Set = \"SF" << nf/2 + 1 << "\" \n";
 			myfile << "	Center = " << x << ", " << y << ", " << z << "\n";
 			myfile << "	PoleTrPl trend = " << theta * 180 / M_PI << " plunge = " << phi * 180 / M_PI << "\n";
 			myfile << "	Radius = " << lf << "\n";

@@ -13,3 +13,13 @@ void Main()
 	FMMechsys::Gui form;
 	Application::Run(%form);
 }
+
+void main()
+{
+	Application::EnableVisualStyles();
+	Application::SetCompatibleTextRenderingDefault(false);
+
+	FMMechsys::Gui form;
+	Application::Run(%form);
+}
+
