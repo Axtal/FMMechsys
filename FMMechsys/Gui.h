@@ -1,14 +1,14 @@
 #pragma once
+#define _USE_MATH_DEFINES
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <hdf5.h>
 #include <hdf5_hl.h>
+#include <Eigen/Dense>
 #include <msclr/marshal_cppstd.h>
-
-#define _USE_MATH_DEFINES
-#include <cmath>
-
 #include "Splash.h"
+
 
 using namespace msclr::interop;
 
@@ -152,10 +152,8 @@ namespace FMMechsys {
 		std::string fname = marshal_as<std::string>(ftemp);
 
 		//Open the file and dataset containing the fractures
-		hid_t file_id, dataset;
-		
+		hid_t file_id;		
 		file_id = H5Fopen(fname.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-
 		if (file_id < 0)
 		{
 			Splash ^ splash = gcnew Splash;
@@ -164,10 +162,16 @@ namespace FMMechsys {
 			return;
 		}
 		
-		
-
-
+		hid_t dataset;
 		dataset    = H5Dopen(file_id, "/Verts", H5P_DEFAULT);
+		if (dataset < 0)
+		{
+			Splash ^ splash = gcnew Splash;
+			splash->ModifyL1("No /Verts dataset in h5 file");
+			splash->ShowDialog();
+			return;
+		}
+
 		hid_t dspace   = H5Dget_space(dataset);
 		hssize_t hsize = H5Sget_simple_extent_ndims(dspace);
 
@@ -176,38 +180,97 @@ namespace FMMechsys {
 		dims = new hsize_t[ndims]; 
 		H5Sget_simple_extent_dims(dspace, dims, NULL);
 
-		//Gettings number of fractures
-		
-		String ^ Nfractures = "Number of fractures ";
-		Nfractures = Nfractures + System::Convert::ToString(dims[0]);
+		size_t nfrac = dims[0] / 15;
 
+		
+
+		//Gettings number of fractures		
+		String ^ Nfractures = "Number of fractures ";
+		Nfractures = Nfractures + System::Convert::ToString(nfrac);
+
+
+		
 		Splash ^ splash = gcnew Splash;
 		splash->ModifyL1(Nfractures);
 		splash->ShowDialog();
+
+
+		// Getting fractures
+		float * Vecs;
+		Vecs = new float[dims[0]];
+		H5LTread_dataset_float(file_id, "/Verts", Vecs);
+
+		// Closing h5 file
+		H5Fflush(file_id, H5F_SCOPE_GLOBAL);
+		H5Fclose(file_id);
+
+		Eigen::Vector3d * Verts;
+		Verts = new Eigen::Vector3d[5 * nfrac];
+
+		for (size_t nf = 0; nf < nfrac; nf++)
+		{
+			Verts[5 * nf + 0] = Eigen::Vector3d(Vecs[15 * nf + 0], Vecs[15 * nf + 1], Vecs[15 * nf + 2]);
+			Verts[5 * nf + 1] = Eigen::Vector3d(Vecs[15 * nf + 3], Vecs[15 * nf + 4], Vecs[15 * nf + 5]);
+			Verts[5 * nf + 2] = Eigen::Vector3d(Vecs[15 * nf + 6], Vecs[15 * nf + 7], Vecs[15 * nf + 8]);
+			Verts[5 * nf + 3] = Eigen::Vector3d(Vecs[15 * nf + 9], Vecs[15 * nf + 10], Vecs[15 * nf + 11]);
+			Verts[5 * nf + 4] = Eigen::Vector3d(Vecs[15 * nf + 12], Vecs[15 * nf + 13], Vecs[15 * nf + 14]);
+		}
+		delete[] dims;
+
+		std::ofstream myfile("macro.fmf");
+		// Writing Fractures to Fracman fracture file
+		for (size_t nf = 0; nf < nfrac; nf++)
+		{
+			double x = Verts[5 * nf + 4](0);
+			double y = Verts[5 * nf + 4](2);
+			double z = Verts[5 * nf + 4](1);
+			Eigen::Vector3d d1 = Verts[5 * nf + 1] - Verts[5 * nf + 0];
+			Eigen::Vector3d d2 = Verts[5 * nf + 3] - Verts[5 * nf + 0];
+			Eigen::Vector3d d3 = Verts[5 * nf + 3] - Verts[5 * nf + 1];
+			Eigen::Vector3d d1xd2 = d1.cross(d2);
+			Eigen::Vector3d nz(0, 0, 1);
+
+			double theta = acos(d1xd2.dot(nz) / d1xd2.norm());
+			double phi = 0.0;
+			double lf = d3.norm();
+
+			myfile << " BEGIN SingleFracture \n";
+			myfile << "	Name = \"Single Fracture " << nf + 1 << "\" \n";
+			myfile << "	Set = \"SF" << nf + 1 << "\" \n";
+			myfile << "	Center = " << x << ", " << y << ", " << z << "\n";
+			myfile << "	PoleTrPl trend = " << theta * 180 / M_PI << " plunge = " << phi * 180 / M_PI << "\n";
+			myfile << "	Radius = " << lf << "\n";
+			myfile << "	NumSides = 4 \n";
+			myfile << "	MaxElementSize = 0 \n";
+			myfile << "	Property Name = \"Aperture\" Type = \"CONSTANT\" \"Value\" = 0.001 \n";
+			myfile << "	Property Name = \"Permeability\" Type = \"CONSTANT\" \"Value\" = 1.0e5 \n";
+			myfile << "	Property Name = \"Compressibility\" Type = \"CONSTANT\" \"Value\" = 1.0e-7 \n";
+			myfile << " END \n";
+		}
+		//myfile << " BEGIN CREATEREGION \n";
+		//myfile << "   ObjectName = \"RegionBox_1\" \n";
+		//myfile << "   Type = \"Box\" \n";
+		//myfile << "   Center = 0.0, 0.0, 0.0 \n";
+		//myfile << "   Size = " << L << ", " << L << ", " << L << "\n";
+		//myfile << " END \n";
+		//myfile << " BEGIN CLIPFRACTURES \n";
+		//myfile << "   Object = \"RegionBox_1\" \n";
+		//myfile << "   ClipToPositive = 1 \n";
+		//myfile << " END \n";
+
+		myfile.close();
+
 
 	}
 private: System::Void button2_Click(System::Object^  sender, System::EventArgs^  e) {
 	OpenFileDialog ^ openFileDialog1 = gcnew OpenFileDialog();
 	openFileDialog1->Filter = "h5 Files|*.h5";
 	openFileDialog1->Title = "Select an h5 File";
-
-	//if (openFileDialog1->ShowDialog() == System::Windows::Forms::DialogResult::OK)
-	//{
-		// Assign the cursor in the Stream to  
-		// the Form's Cursor property.  
-		//this->Cursor = gcnew
-			//System::Windows::Forms::Cursor(
-				//openFileDialog1->OpenFile());
-	//}
 	if (openFileDialog1->ShowDialog() == System::Windows::Forms::DialogResult::OK)
 	{
-		//System::IO::StreamReader ^sr = gcnew	System::IO::StreamReader(openFileDialog1->FileName);
-		//MessageBox.Show(sr->ReadToEnd());
-		//sr.Close();
 		filename   = System::IO::Path::GetFileName(openFileDialog1->FileName);
 		filenameFP = System::IO::Path::GetFullPath(openFileDialog1->FileName);
 	}
-	//filename = openFileDialog1->FileName;
 }
 };
 }
